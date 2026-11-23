@@ -24,15 +24,11 @@ For tables, I keep the title and connect each value with its row and column labe
 Revenue | 2025: 100.5 | 2024: 95.2
 ```
 
-I use the text splitter from Tutorial 7. The chunk size is 1,000 characters, with an overlap of 200 characters. Each chunk keeps its document metadata. Table conversion and chunking do not use an LLM.
+I used the text splitter from Tutorial 7 to cut documents into 1000-character chunks, with a 200-character overlap. Each chunk keeps its metadata. I didn't use the LLM for parsing tables or chunking.
 
-I use BM25 instead of embeddings or a vector database. For question parsing, I use the provided `make_llm()` to find companies and document type. A regular expression finds the year. Parsing results are cached.
+For searching, I used BM25 instead of vector embeddings. To parse the question, I used the provided make_llm() to extract the company names and document type. A simple regex gets the year, and I cached the results.
 
-The retriever filters chunks by company, report type and year coverage. A year's data may appear in that year's annual report or the next year's report.
-
-Before ranking, I remove company names and common question words from the search query. This helps BM25 focus on the requested financial metric.
-
-For comparisons, I take turns selecting chunks from each company. The retriever returns at most five original chunks. It returns an empty list when there are no matching candidates.
+The retriever filters chunks by company, doc type, and year. Before ranking, I removed company names and common question words from the search query. This helps BM25 focus on the actual financial metric. For comparison questions, I take turns grabbing chunks from each company. It returns at most 5 raw chunks, or an empty list if nothing matches.
 
 ### 2. Ablation study
 
