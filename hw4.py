@@ -31,6 +31,12 @@ load_dotenv()
 
 # =============================================================================
 # Your code: add imports, constants and helper functions here.
+from bs4 import BeautifulSoup, NavigableString
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+USE_TABLE_TEXT = True
+from rank_bm25 import BM25Okapi
+from functools import lru_cache
 # =============================================================================
 
 
@@ -42,8 +48,49 @@ def table_to_text(table_html: str) -> str:
     every cell unchanged, and include the caption (it holds the unit) in the output. Do not call the
     LLM here.
     """
-    ### YOUR CODE HERE
-    return ""
+    soup = BeautifulSoup(table_html, "html.parser")
+    table = soup.find("table")
+
+    if table is None:
+        return ""
+
+    lines = []
+
+    caption = table.find("caption")
+    if caption:
+        lines.append(caption.get_text(" ", strip=True))
+
+    rows = table.find_all("tr")
+    if not rows:
+        return "\n".join(lines)
+
+    headers = [
+        cell.get_text(" ", strip=True)
+        for cell in rows[0].find_all(["th", "td"])
+    ]
+
+    for row in rows[1:]:
+        values = [
+            cell.get_text(" ", strip=True)
+            for cell in row.find_all(["th", "td"])
+        ]
+
+        if not values:
+            continue
+
+        if len(values) == 1:
+            lines.append(values[0])
+            continue
+
+        row_label = values[0]
+        parts = [row_label]
+
+        for column, value in zip(headers[1:], values[1:]):
+            parts.append(f"{column}: {value}")
+
+        lines.append(" | ".join(parts))
+
+    return "\n".join(lines)
 
 
 def chunk_document(file_name: str, html: str) -> list[Document]:
@@ -52,8 +99,74 @@ def chunk_document(file_name: str, html: str) -> list[Document]:
     Every chunk needs the metadata "source" (= file_name), "company", "fiscal_year" (an int) and
     "doc_type" (one of DOC_TYPES). Do not call the LLM here.
     """
-    ### YOUR CODE HERE
-    return []
+    soup = BeautifulSoup(html, "html.parser")
+
+    h1 = soup.find("h1")
+
+    if h1 is None:
+        raise ValueError(f"{file_name}: missing company heading")
+
+    company = h1.get_text(" ", strip=True)
+
+    company = re.sub(r"\s*\([^)]*\)\s*$", "", company)
+
+    title = (
+        soup.title.get_text(" ", strip=True)
+        if soup.title
+        else ""
+    )
+
+    header = title + "\n" + soup.get_text(" ", strip=True)[:1500]
+
+    patterns = [
+        ("annual_report", r"Annual Report\s+(\d{4})"),
+        ("earnings_call", r"Full Year\s+(\d{4})"),
+        ("research_report", r"FY\s*(\d{4})\s+results review"),
+    ]
+
+    fiscal_year = None
+    doc_type = None
+
+    for candidate_type, pattern in patterns:
+        match = re.search(pattern, header, flags=re.I)
+
+        if match:
+            doc_type = candidate_type
+            fiscal_year = int(match.group(1))
+            break
+
+    if fiscal_year is None:
+        raise ValueError(f"{file_name}: cannot identify report year")
+
+    metadata = {
+        "source": file_name,
+        "company": company,
+        "fiscal_year": fiscal_year,
+        "doc_type": doc_type,
+    }
+
+    for tag in soup.find_all(["script", "style", "nav"]):
+        tag.decompose()
+
+    if USE_TABLE_TEXT:
+        for table in list(soup.find_all("table")):
+            converted = table_to_text(str(table))
+            table.replace_with(NavigableString(converted))
+
+    body = soup.body if soup.body is not None else soup
+    text = body.get_text(separator="\n", strip=True)
+
+    document = Document(
+        page_content=text,
+        metadata=metadata,
+    )
+
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000,
+        chunk_overlap=200,
+    )
+
+    return splitter.split_documents([document])
 
 
 def parse_query(question: str) -> dict:
@@ -61,8 +174,61 @@ def parse_query(question: str) -> dict:
 
     The rules for each field are under Task 2.2 in the handout. You may use make_llm() here.
     """
-    ### YOUR CODE HERE
-    return {}
+@lru_cache(maxsize=512)
+def parse_query(question):
+    instructions = """
+Extract information from the question. Do not answer it.
+
+Return only a JSON object with:
+- companies: a list of every company the question asks about.
+  Copy the company names from the question.
+  Include unknown companies.
+  Do not include brokers or audit firms.
+- doc_type:
+  "earnings_call" if the question asks about an earnings call;
+  "research_report" if it asks about a broker's rating,
+  target price, forecast or results review;
+  otherwise "annual_report".
+
+For comparison questions, include every company being compared.
+"""
+
+    llm = make_llm(max_tokens=300)
+
+    response = llm.invoke([
+        ("system", instructions),
+        ("human", question),
+    ])
+
+    text = str(response.content).strip()
+
+    text = re.sub(
+        r"^```(?:json)?\s*|\s*```$",
+        "",
+        text,
+        flags=re.I,
+    )
+
+    parsed = json.loads(text)
+
+    if not isinstance(parsed["companies"], list):
+        raise ValueError("companies must be a list")
+
+    if parsed["doc_type"] not in DOC_TYPES:
+        raise ValueError("Invalid document type")
+
+    match = re.search(
+        r"(?<!\d)(?:19|20)\d{2}(?!\d)",
+        question,
+    )
+
+    fiscal_year = int(match.group()) if match else None
+
+    return {
+        "companies": parsed["companies"],
+        "fiscal_year": fiscal_year,
+        "doc_type": parsed["doc_type"],
+    }
 
 
 def build_index(chunks: list[Document]) -> Any:
@@ -70,8 +236,25 @@ def build_index(chunks: list[Document]) -> Any:
 
     Return anything retrieve() needs: a BM25 or TF-IDF index, the chunks grouped by metadata, ...
     """
-    ### YOUR CODE HERE
-    return None
+    chunks = list(chunks)
+
+    if not chunks:
+        return {
+            "chunks": [],
+            "bm25": None,
+        }
+
+    tokenized_chunks = [
+        chunk.page_content.lower().split()
+        for chunk in chunks
+    ]
+
+    bm25 = BM25Okapi(tokenized_chunks)
+
+    return {
+        "chunks": chunks,
+        "bm25": bm25,
+    }
 
 
 def retrieve(index: Any, question: str) -> list[Document]:
@@ -79,8 +262,115 @@ def retrieve(index: Any, question: str) -> list[Document]:
 
     Return [] when the corpus cannot answer the question: the generator then answers NOT_FOUND.
     """
-    ### YOUR CODE HERE
-    return []
+    chunks = index["chunks"]
+
+    if not chunks:
+        return []
+
+    parsed = parse_query(question)
+
+    wanted_companies = {
+        company_key(name)
+        for name in parsed["companies"]
+    }
+
+    if not wanted_companies:
+        return []
+
+    query_year = parsed["fiscal_year"]
+    query_type = parsed["doc_type"]
+
+    candidates = []
+
+    for i, chunk in enumerate(chunks):
+        metadata = chunk.metadata
+
+        if company_key(metadata["company"]) not in wanted_companies:
+            continue
+
+        if metadata["doc_type"] != query_type:
+            continue
+
+        if query_year is not None and query_type == "annual_report":
+            if metadata["fiscal_year"] not in (
+                query_year,
+                query_year + 1,
+            ):
+                continue
+
+        candidates.append(i)
+
+    if not candidates:
+        return []
+  
+    company_words = set(
+        re.findall(
+            r"[a-z]+",
+            " ".join(parsed["companies"]).lower(),
+        )
+    )
+    stop_words = set(
+        "which what who how much many company companies had has have "
+        "the a an is are was were in of at on for to and or than "
+        "higher more fy usd million millions end december did does "
+        "its their by".split()
+    )
+
+    query_tokens = [
+        word
+        for word in re.findall(r"[a-z]+", question.lower())
+        if word not in company_words and word not in stop_words
+    ]
+
+    if not query_tokens:
+        query_tokens = question.lower().split()
+
+    scores = index["bm25"].get_scores(query_tokens)
+
+    ranked_ids = sorted(
+        candidates,
+        key=lambda i: scores[i],
+        reverse=True,
+    )
+
+    if len(wanted_companies) == 1:
+        selected_ids = ranked_ids[:MAX_RETRIEVED]
+
+    else:
+        groups = []
+
+        for company in sorted(wanted_companies):
+            company_results = [
+                i
+                for i in ranked_ids
+                if company_key(chunks[i].metadata["company"])
+                == company
+            ]
+
+            groups.append(company_results)
+
+        selected_ids = []
+
+        for position in range(MAX_RETRIEVED):
+            for group in groups:
+                if position < len(group):
+                    selected_ids.append(group[position])
+
+                if len(selected_ids) >= MAX_RETRIEVED:
+                    break
+
+            if len(selected_ids) >= MAX_RETRIEVED:
+                break
+
+        selected_ids.sort(
+            key=lambda i: scores[i],
+            reverse=True,
+        )
+
+    return [
+        chunks[i]
+        for i in selected_ids
+    ]
 
 
 # =============================================================================
