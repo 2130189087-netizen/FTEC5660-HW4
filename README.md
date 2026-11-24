@@ -42,10 +42,6 @@ I tested five versions on the same public set of 40 documents and 60 questions. 
 | V3 | Select evidence separately for each company |
 | V4 | Remove company words and common question words before ranking |
 
-B0 uses lower-case whitespace tokens. It does not parse questions or actively reject them.
-
-Recall@5 measures whether all required evidence is found for an answerable question. Reject rate measures how often the retriever returns an empty list for an unanswerable question.
-
 | Version | Recall@5 | Answer accuracy | Reject rate | Time (seconds) | 
 |---|---:|---:|---:|---:|
 | B0 | 26.1% | 43.3% | 0.0% | 7.0 | 
