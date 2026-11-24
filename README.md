@@ -54,7 +54,6 @@ Recall@5 measures whether all required evidence is found for an answerable quest
 | V3 | 60.9% | 70.0% | 71.4% | 68.8 |
 | V4 | 100.0% | 100.0% | 71.4% | 70.9 |
 
-Cost includes my model calls and the generator's calls. All versions returned chunks for every answerable question. Results and logs were saved for each version.
 
 ### 3. What helped?
 
