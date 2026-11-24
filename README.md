@@ -46,13 +46,13 @@ B0 uses lower-case whitespace tokens. It does not parse questions or actively re
 
 Recall@5 measures whether all required evidence is found for an answerable question. Reject rate measures how often the retriever returns an empty list for an unanswerable question.
 
-| Version | Recall@5 | Answer accuracy | Reject rate | Time (seconds) | Estimated cost (USD) |
-|---|---:|---:|---:|---:|---:|
-| B0 | 26.1% | 43.3% | 0.0% | 7.0 | 0.0130 |
-| V1 | 28.3% | 43.3% | 0.0% | 7.4 | 0.0128 |
-| V2 | 60.9% | 70.0% | 71.4% | 70.9 | 0.0123 |
-| V3 | 60.9% | 70.0% | 71.4% | 68.8 | 0.0124 |
-| V4 | 100.0% | 100.0% | 71.4% | 70.9 | 0.0148 |
+| Version | Recall@5 | Answer accuracy | Reject rate | Time (seconds) | 
+|---|---:|---:|---:|---:|
+| B0 | 26.1% | 43.3% | 0.0% | 7.0 | 
+| V1 | 28.3% | 43.3% | 0.0% | 7.4 |
+| V2 | 60.9% | 70.0% | 71.4% | 70.9 |
+| V3 | 60.9% | 70.0% | 71.4% | 68.8 |
+| V4 | 100.0% | 100.0% | 71.4% | 70.9 |
 
 Cost includes my model calls and the generator's calls. All versions returned chunks for every answerable question. Results and logs were saved for each version.
 
