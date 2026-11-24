@@ -79,10 +79,4 @@ Company names and common question words affected the ranking. Some selected pass
 
 ### 5. Limitations
 
-The final retriever rejected 10 of the 14 unanswerable questions. For the other four, it returned passages, but the generator correctly answered `NOT_FOUND`.
-
-This is why answer accuracy was 100%, while Task 3 received 7.14 out of 10 points.
-
-The current rejection method mainly relies on metadata filtering. It does not fully check whether a requested metric is disclosed. A future improvement could check evidence sufficiency, while avoiding rejection of answerable questions.
-
-V4 received 72.14 out of 75 automatic points on the public set. Performance on the private set may be different.
+My retriever successfully rejected 10 out of the 14 "unanswerable" questions. Currently, I mostly rely on metadata filtering to do this. However, there is a blind spot in this strategy: it doesn't verify if the specific metric asked in the question is actually mentioned in the document.
