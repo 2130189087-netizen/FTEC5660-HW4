@@ -55,11 +55,11 @@ I tested five versions on the same public set of 40 documents and 60 questions. 
 
 **V1: Table conversion**
 
-Recall improved slightly, but answer accuracy did not change. Table-question accuracy fell from 18.2% to 9.1%. Clearer table text alone did not solve the ranking problem. Changes to the text can also affect chunk boundaries and BM25 scores.
+Recall improved slightly, but answer accuracy did not change. Table-question accuracy fell from 18.2% to 9.1%. Clearer table text alone did not solve the ranking problem. 
 
 **V2: Metadata filtering**
 
-This change helped greatly. Recall increased to 60.9%, and answer accuracy reached 70.0%. Question parsing was 100% correct on the public set. Filtering removed many passages about unrelated companies or reports.
+This change helped greatly. Recall increased to 60.9%, and answer accuracy reached 70.0%. Question parsing was 100% correct on the public set. 
 
 **V3: Separate company selection**
 
