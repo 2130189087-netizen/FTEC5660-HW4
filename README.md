@@ -80,3 +80,27 @@ Company names and common question words affected the ranking. Some selected pass
 ### 5. Limitations
 
 My retriever successfully rejected 10 out of the 14 "unanswerable" questions. Currently, I mostly rely on metadata filtering to do this. However, there is a blind spot in this strategy: it doesn't verify if the specific metric asked in the question is actually mentioned in the document.
+### 6. Reflection
+If everyone had a powerful personal AI agent ten years from now, I would want to be a curious, honest
+and responsible person. AI could help me finish many tasks, but I would still need to decide which
+tasks matter and take responsibility for my choices.
+Some of my ambitions would still matter. I would still want a meaningful career, financial
+independence and good relationships with the people around me. However, I would think more
+carefully about why I wanted these things. Getting a job title or producing more work would not be
+enough if I did not find meaning in what I was doing.
+Beyond my achievements, I would want people to remember me as someone they could trust. I would
+want to listen carefully, keep my promises and help others when they needed support. An AI agent
+might write a kind message for me, but I would still need to show care through my actions.
+I would still be willing to struggle with learning. This homework reminded me that getting code to run
+is different from understanding it. Even when AI can explain or write a function, I want to understand
+why it works and where it might fail. I would rather spend time asking questions than accept an answer
+I could not explain.
+I think judgment, communication, empathy and practical experience would remain valuable. AI can
+provide suggestions, but people still need to understand different needs, handle disagreement and
+decide what is fair. Knowing when to question an AI answer would also be important.
+I would define myself through my values, relationships and choices, rather than only through what I
+could produce. My value would include how I treated people and whether I acted responsibly when
+making difficult decisions.
+Starting tomorrow, I want to use AI more actively as a learning tool. Before using AI-generated code, I
+will try to explain it in my own words and check its results. I also want to give more attention to people
+around me, because saving time is useful only if I spend that time well.
